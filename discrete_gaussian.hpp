@@ -12,7 +12,7 @@ using namespace NTL;
 
 /*
  * Represents a block, containing a closed interval [a,b] and the total probability P([a,b]).
- */
+ * /
 struct ky_block {
     ZZ a, b;
     double total_prob;
@@ -21,6 +21,7 @@ struct ky_block {
 ostream& operator<<(ostream& os, const ky_block& blk) {
     return os << "[" << blk.a << "," << blk.b << "]: " << blk.total_prob;
 }
+*/
 
 /*
  * Represents a generator for true random bits.
@@ -72,23 +73,21 @@ class random_bit_generator {
 class discrete_gaussian {
     private:
         double sigma; // The standard deviation of the distribution.
-        double m; // The number of standard deviations we want to consider. Typically
-        // in the range [20,40].
-
-        size_t t; // Number of blocks.
-        ky_block *blocks; // Array of t blocks.
-
+        long m; // The number of standard deviations we want to consider. Typically
+                // in the range [20,40].
+        long max; // The maximum value supported by this distribution. Given by
+                  // ceil(m*sigma).
+        double *probs; // The list of probabilities for each x in [0,max].
         double S; // Normalization factor.
     public:
-        discrete_gaussian(double sigma, ZZ m, size_t t);
+        discrete_gaussian(double sigma, long m);
 
-        double prob(ZZ x);
-        double prob(ZZ a, ZZ b);
+        double prob(long x);
+        double prob(long a, long b);
 
-        ZZ gen_number();
+        long gen_number();
 
-        size_t get_t() { return t; }
-        ky_block *get_blocks() { return blocks; }
+        long get_max() { return max; }
 };
 
 #endif
