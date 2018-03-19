@@ -15,7 +15,7 @@ using namespace NTL;
  * /
 struct ky_block {
     ZZ a, b;
-    double total_prob;
+    RR total_prob;
 };
 
 ostream& operator<<(ostream& os, const ky_block& blk) {
@@ -66,24 +66,29 @@ class random_bit_generator {
         }
 };
 
+void to_bin(RR d, uint8_t *arr, size_t len);
+
 /*
  * Represents a Knuth-Yao discrete Gaussian random number generator, centered around 0. 
  * Generates integers in the range [-ceil(m * sigma), ceil(m * sigma)].
  */
 class discrete_gaussian {
     private:
-        double sigma; // The standard deviation of the distribution.
+        RR sigma; // The standard deviation of the distribution.
         long m; // The number of standard deviations we want to consider. Typically
                 // in the range [20,40].
         long max; // The maximum value supported by this distribution. Given by
                   // ceil(m*sigma).
-        double *probs; // The list of probabilities for each x in [0,max].
-        double S; // Normalization factor.
+        RR *probs; // The list of probabilities for each x in [0,max].
+        uint8_t **bin_probs; // The list of probabilities in binary format.
+        RR S; // Normalization factor.
     public:
-        discrete_gaussian(double sigma, long m);
+        discrete_gaussian(RR sigma, long m);
 
-        double prob(long x);
-        double prob(long a, long b);
+        RR prob(long x);
+        RR prob(long a, long b);
+
+        void display_bin_probs();
 
         long gen_number();
 

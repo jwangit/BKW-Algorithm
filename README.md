@@ -7,8 +7,8 @@ secure, nor that the implementation is vulnerability and bug free.
 
 ## Features implemented:
 * Generic LWE oracle.
+* Discrete Gaussian random number generation using Knuth-Yao.
 
 ## Features to implement:
 * Actual BKW algorithm.
-* Discrete Gaussian random number generation (using Knuth-Yao or something like that).
 * Decent documentation (though the source comments are pretty good).
