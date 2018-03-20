@@ -90,7 +90,7 @@ class discrete_gaussian {
 
         void display_bin_probs();
 
-        long gen_number();
+        ZZ gen_number();
 
         long get_max() { return max; }
 };

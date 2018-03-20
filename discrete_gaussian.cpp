@@ -98,7 +98,7 @@ void discrete_gaussian::display_bin_probs() {
 /*
  * Generates a random number according to this distribution, using the Knuth-Yao algorithm.
  */
-long discrete_gaussian::gen_number() {
+ZZ discrete_gaussian::gen_number() {
     // Generate a bit for the sign.
     long sign = (RandomBits_long(1) == 0) ? 1 : -1;
 
@@ -106,7 +106,7 @@ long discrete_gaussian::gen_number() {
     int d = 0;
     int hit = 0;
     unsigned col = 0;
-    int s = 0;
+    long s = 0;
     while (hit == 0) {
         long r = RandomBits_long(1);
         d = 2*d + (1 ^ r);
@@ -127,6 +127,6 @@ long discrete_gaussian::gen_number() {
         }
     }
 
-    return sign * s;
+    return ZZ(sign * s);
 }
 

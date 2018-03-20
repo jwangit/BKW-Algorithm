@@ -14,7 +14,7 @@ int main() {
     RR total(1000000);
     discrete_gaussian dg(RR(2.5), 10);
     for (int i = 0; i < total; i++) {
-        int n = dg.gen_number();
+        long n = conv<long>(dg.gen_number());
         arr[n + 25] = arr[n + 25] + 1;
     }
     dg.display_bin_probs();

@@ -62,11 +62,3 @@ vec_ZZ_p lwe_oracle::get_s() {
     return s;
 }
 
-// Tester
-int main() {
-    lwe_oracle l(5, ZZ(10), [](){ return RandomLen_ZZ(64); });
-    cout << l.get_s() << endl;
-    for (int i = 0; i < 10; i++) {
-        cout << l.query() << endl;
-    }
-}
