@@ -37,12 +37,12 @@ template<> struct std::hash<vec_ZZ_p> {
 using vecmap = unordered_map<vec_ZZ_p, vec_ZZ_p>;
 
 /*
- * Tests whether the subvector v_(a,b) is entirely zero or not. The indicies
- * a and b start from 1.
+ * Tests whether the slice v_(a,b) is entirely zero or not. The indicies a and b start from
+ * 0. For convenience, this function will return true for a >= b.
  */
 bool is_all_zero(vec_ZZ_p v, int a, int b) {
-    for (int i = a; i <= b; i++)
-        if (v(i) != 0)
+    for (int i = a; i < b; i++)
+        if (v[i] != 0)
             return false;
 
     return true;
@@ -71,6 +71,7 @@ class B_oracles {
         lwe_oracle &oracle;
         long a;
         long b;
+        long d;
 
         // Tests whether or not the table Tl[i] has an entry for the provided vector v.
         bool Tl_empty(int i, vec_ZZ_p v) {
@@ -82,19 +83,58 @@ class B_oracles {
          * provided parameters and maintain the Tl tables needed for all instances of
          * the oracle.
          */
-        B_oracles(lwe_oracle &oracle, long b) : oracle(oracle), b(b) {
+        B_oracles(lwe_oracle &oracle, long b, long d) : oracle(oracle), b(b), d(d) {
             this->a = ceil(oracle.get_n() / b);
-            this->Tl = (vecmap *) malloc(a * sizeof(vecmap));
-            for (int i = 0; i < a; i++) {
+            this->Tl = (vecmap *) malloc((a + 1) * sizeof(vecmap));
+            for (int i = 0; i <= a; i++) {
                 Tl[i] = vecmap();
             }
         }
 
-        // Query the oracle indexed by l (0 <= l < a) and return the result.
-        vec_ZZ_p query(int l) {
+        /*
+         * Query the oracle indexed by l (0 <= l <= a) and return the result.
+         */
+        vec_ZZ_p query(long l) {
             // If l = 0, this is just the LWE oracle.
             if (l <= 0) {
                 return oracle.query();
+            }
+
+            // If l = a, this is the special case where we want to eliminate all but the
+            // last d components. 
+            if (l == a) {
+                // Query the (a - 1) oracle to obtain ac = (a,c).
+                vec_ZZ_p ac = this->query(a - 1);
+
+                // If the b*(a - 1)-th through (n - d)-th components of a are all zeros,
+                // return (a,c). Note that the algorithm is guaranteed to terminate here
+                // when we choose d = b.
+                long n = oracle.get_n();
+                vec_ZZ_p ac_slice = slice(ac, b*(a - 1), n - d);
+                if (is_all_zero(ac, b*(a - 1), n - d))
+                    return ac;
+
+                // Repeatedly query the (a - 1) oracle until we either hit an all-zero 
+                // slice or we find two vectors whose b*(a - 1)-th through (n - d)-th
+                // components all sum to zero.
+                while (Tl[a][ac_slice].length() == 0 && Tl[a][-ac_slice].length() == 0) {
+                    Tl[a][ac_slice] = ac;
+                    ac = this->query(a - 1);
+                    ac_slice = slice(ac, b*(a - 1), n - d);
+                    if (is_all_zero(ac, b*(a - 1), n - d))
+                        return ac;
+                }
+
+                // Now that we've found two vectors whose b*(a - 1)-th through (n - d)-th
+                // components differ by a multiple of -1, return their difference or sum
+                // (whichever causes these components to become zero).
+                if (Tl[a][ac_slice].length() != 0) {
+                    vec_ZZ_p ac_prime = Tl[a][ac_slice];
+                    return ac - ac_prime;
+                } else {
+                    vec_ZZ_p ac_prime = Tl[a][-ac_slice];
+                    return ac + ac_prime;
+                }
             }
 
             // For 0 < l < a, query the previous oracle to obtain ac = (a,c).
@@ -106,8 +146,8 @@ class B_oracles {
                 return ac;
 
             // Repeatedly query the previous oracle until we either hit an all-zero
-            // subvector or we find two vectors whose b*(l - 1)-th through b*l-th components
-            // all sum to zero.
+            // slice or we find two vectors whose b*(l - 1)-th through (b*l - 1)-th components
+            // are either identical or all sum to zero.
             vec_ZZ_p ac_slice = slice(ac, b*(l - 1), b*l);
             while (Tl[l][ac_slice].length() == 0 && Tl[l][-ac_slice].length() == 0) {
                 Tl[l][ac_slice] = ac;
@@ -134,13 +174,15 @@ class B_oracles {
  * Performs the Search version of the BKW algorithm to recover the secret vector 
  * s from the provided oracle. When it completes, it returns s.
  *
- * The algorithm requires a parameter b, the "window width."
+ * The algorithm requires the following parameters:
+ *     b: the "window width."
+ *     d: the length of the last block we will eliminate (0 <= d < b).
  */
-vec_ZZ_p bkw(lwe_oracle &oracle, long b) {
+vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d) {
     // Set up the series of B oracles.
-    B_oracles bs(oracle, b);
+    B_oracles bs(oracle, b, d);
 
-    return bs.query(3);
+    return bs.query(4);
 }
 
 static discrete_gaussian dg(RR(2.5),10);
@@ -148,6 +190,6 @@ static discrete_gaussian dg(RR(2.5),10);
 int main() {
     ZZ_pPush push(ZZ(10));
     lwe_oracle l(8, ZZ(10), [](){ return dg.gen_number(); });
-    cout << "Result: " << bkw(l,2) << endl;
+    cout << "Result: " << bkw(l, 2, 1) << endl;
 }
 
