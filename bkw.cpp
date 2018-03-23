@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <NTL/ZZ.h>
 #include <NTL/ZZ_p.h>
@@ -8,58 +9,10 @@
 
 #include "discrete_gaussian.hpp"
 #include "lwe_oracle.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace NTL;
-
-/*
- * Class that hashes a vec_ZZ_p, so we can use them in unordered_maps.
- */
-template<> struct std::hash<vec_ZZ_p> {
-    public:
-        /*
-         * The hash of a vector v of length n will be the number obtained when
-         * we view v as a number in base p with n digits. As such, there will
-         * be no collisions among vectors of the same length (which will generally
-         * be our case).
-         */
-        size_t operator()(const vec_ZZ_p& v) const {
-            size_t n = v.length();
-            size_t p = conv<size_t>(ZZ_p::modulus());
-            size_t hash = 0;
-            for (size_t i = 1; i <= n; i++) {
-                hash += conv<size_t>(v(i)) * power_long(p, n - i);
-            }
-            return hash;
-        }
-};
-
-using vecmap = unordered_map<vec_ZZ_p, vec_ZZ_p>;
-
-/*
- * Tests whether the slice v_(a,b) is entirely zero or not. The indicies a and b start from
- * 0. For convenience, this function will return true for a >= b.
- */
-bool is_all_zero(vec_ZZ_p v, int a, int b) {
-    for (int i = a; i < b; i++)
-        if (v[i] != 0)
-            return false;
-
-    return true;
-}
-
-/*
- * Returns the a-th through (b - 1)-th components of the vector v as a vectors. The indexing
- * starts at 0.
- */
-vec_ZZ_p slice(vec_ZZ_p v, int a, int b) {
-    vec_ZZ_p res = random_vec_ZZ_p(b - a);
-    for (int i = a; i <= b - 1; i++) {
-        res[i - a] = v[i];
-    }
-    
-    return res;
-}
 
 /*
  * Class representing the series of "B oracles" we will be using for the sample reduction
@@ -72,11 +25,6 @@ class B_oracles {
         long a;
         long b;
         long d;
-
-        // Tests whether or not the table Tl[i] has an entry for the provided vector v.
-        bool Tl_empty(int i, vec_ZZ_p v) {
-            return Tl[i].find(v) == Tl[i].end();
-        }
     public:
         /*
          * Construct the series of B oracles we will use. These will keep track of the
@@ -85,7 +33,7 @@ class B_oracles {
          */
         B_oracles(lwe_oracle &oracle, long b, long d) : oracle(oracle), b(b), d(d) {
             this->a = ceil(oracle.get_n() / b);
-            this->Tl = (vecmap *) malloc((a + 1) * sizeof(vecmap));
+            this->Tl = new vecmap[a + 1];
             for (int i = 0; i <= a; i++) {
                 Tl[i] = vecmap();
             }
@@ -177,19 +125,58 @@ class B_oracles {
  * The algorithm requires the following parameters:
  *     b: the "window width."
  *     d: the length of the last block we will eliminate (0 <= d < b).
+ *     m: the number of samples from the a-th B oracle we will use to conduct
+ *        hypothesis testing.
  */
-vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d) {
+vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d, long m) {
+    // Initialize some helpful constants.
+    const long n = oracle.get_n();
+    const long q = conv<long>(oracle.get_q());
+    const long a = ceil(n / b);
+    
+    /****************************
+     * Step 1: Sample Reduction *
+     ****************************/
+
     // Set up the series of B oracles.
     B_oracles bs(oracle, b, d);
 
-    return bs.query(4);
+    // Query the a-th B oracle m times and store them in an array F.
+    vec_ZZ_p *F = new vec_ZZ_p[m];
+    for (long i = 0; i < m; i++) {
+        F[i] = bs.query(a);
+        cerr << F[i] << endl;
+    }
+
+    /*******************************
+     * Step 2: Hypothesis Testing. *
+     *******************************/
+
+    // Initialize the array S, which will contain the scores of each candidate.
+    unordered_map<vec_ZZ_p,RR> S;
+ 
+    // Go through each of the possible candidate vectors v in Z_q^d.
+    vec_ZZ_p v = zero_vector(d);
+    for (long tmp = 0; tmp < power_long(q, d); tmp++, v = next_vector(v)) {
+        RR s(0); // Set the initial score for this v to 0.
+
+        // Go through each vector F[i] = (a_i,c_i).
+        for (long i = 0; i < m; i++) {
+            // Let a_i_prime be the last d components of a_i. Compute j = <a_i_prime,v> - c_i.
+            vec_ZZ_p a_i_prime = slice(F[i], n - d, n);
+            ZZ_p j = a_i_prime * v - F[i](n + 1);
+
+            // TODO: rest of this.
+        }
+    }
+
+    return random_vec_ZZ_p(3);
 }
 
-static discrete_gaussian dg(RR(2.5),10);
-
 int main() {
-    ZZ_pPush push(ZZ(10));
-    lwe_oracle l(8, ZZ(10), [](){ return dg.gen_number(); });
-    cout << "Result: " << bkw(l, 2, 1) << endl;
+    ZZ q(10);
+    ZZ_pPush push(q);
+    lwe_oracle l(8, q, discrete_gaussian(RR(2.5),10));
+    vec_ZZ_p result = bkw(l, 2, 1, 10);
 }
 

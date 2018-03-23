@@ -5,10 +5,8 @@
 
 using namespace std;
 
-static discrete_gaussian dg(RR(5), 10);
-
 int main() {
-    lwe_oracle l(5, ZZ(10), [](){return dg.gen_number();});
+    lwe_oracle l(5, ZZ(10), discrete_gaussian(RR(5),10));
     cout << l.get_s() << endl;
     for (int i = 0; i < 10; i++) {
         cout << l.query() << endl;

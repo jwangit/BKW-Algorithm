@@ -20,16 +20,16 @@ discrete_gaussian::discrete_gaussian(RR sigma, long m) : sigma(sigma), m(m) {
     RR::SetPrecision(PREC);
     S = sigma * sqrt(2 * M_PI);
     max = conv<long>(ceil(m * sigma));
-    bin_probs = (uint8_t **) malloc(8 * sizeof(uint8_t *));
+    bin_probs = new uint8_t*[8];
 
     // Compute the probabilities for each x in [0,ceil(m*sigma)].
-    probs = (RR *) calloc(max + 1, sizeof(RR));
+    probs = new RR[max + 1];
     probs[0] = prob(0) / 2; // Use half the probability of 0, to account for +0 and -0.
-    bin_probs[0] = (uint8_t *) malloc(RR::precision() / 8);
+    bin_probs[0] = new uint8_t[RR::precision() / 8];
     to_bin(probs[0], bin_probs[0], RR::precision() / 8);
     for (long x = 1; x <= max; x++) {
         probs[x] = prob(x);
-        bin_probs[x] = (uint8_t *) malloc(RR::precision() / 8);
+        bin_probs[x] = new uint8_t[RR::precision() / 8];
         to_bin(probs[x], bin_probs[x], RR::precision() / 8);
     }
 }
