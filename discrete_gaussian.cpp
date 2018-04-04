@@ -20,10 +20,10 @@ discrete_gaussian::discrete_gaussian(RR sigma, long m) : sigma(sigma), m(m) {
     RR::SetPrecision(PREC);
     S = sigma * sqrt(2 * M_PI);
     max = conv<long>(ceil(m * sigma));
-    bin_probs = new uint8_t*[8];
+    probs = new RR[max + 1];
+    bin_probs = new uint8_t*[max + 1];
 
     // Compute the probabilities for each x in [0,ceil(m*sigma)].
-    probs = new RR[max + 1];
     probs[0] = prob(0) / 2; // Use half the probability of 0, to account for +0 and -0.
     bin_probs[0] = new uint8_t[RR::precision() / 8];
     to_bin(probs[0], bin_probs[0], RR::precision() / 8);

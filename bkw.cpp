@@ -133,6 +133,7 @@ vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d, long m) {
     const long n = oracle.get_n();
     const long q = conv<long>(oracle.get_q());
     const long a = ceil(n / b);
+    discrete_gaussian chi = oracle.get_chi();
     
     /****************************
      * Step 1: Sample Reduction *
@@ -152,13 +153,19 @@ vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d, long m) {
      * Step 2: Hypothesis Testing. *
      *******************************/
 
+    // Initialize the distribution of the errors of the B oracles, which will be used in
+    // the computation of the scores. The distribution is the discrete Gaussian with mean
+    // 0 and standard deviation sqrt(2^a) * sigma, where sigma is the standard deviation of the
+    // original error distribution.
+    discrete_gaussian chi_a(sqrt(power_long(2,a)) * chi.get_sigma(), chi.get_m());
+
     // Initialize the array S, which will contain the scores of each candidate.
     unordered_map<vec_ZZ_p,RR> S;
  
     // Go through each of the possible candidate vectors v in Z_q^d.
     vec_ZZ_p v = zero_vector(d);
-    for (long tmp = 0; tmp < power_long(q, d); tmp++, v = next_vector(v)) {
-        RR s(0); // Set the initial score for this v to 0.
+    for (long tmp = 0; tmp < power_long(q, d); tmp++) {
+        S[v] = RR(0); // Set the initial score for this v to 0.
 
         // Go through each vector F[i] = (a_i,c_i).
         for (long i = 0; i < m; i++) {
@@ -166,17 +173,42 @@ vec_ZZ_p bkw(lwe_oracle &oracle, long b, long d, long m) {
             vec_ZZ_p a_i_prime = slice(F[i], n - d, n);
             ZZ_p j = a_i_prime * v - F[i](n + 1);
 
-            // TODO: rest of this.
+            // Compute the weight W_j = log_2[(q^d - 1)p_j/(q^(d - 1) - p_j)], where
+            // p_j = Pr[e ~ chi_a : e = j].
+            RR p_j = chi_a.prob(conv<long>(j));
+            RR p_j_tilde = (power_long(q,d - 1) - p_j)/(power_long(q,d) - 1);
+            cout << "j = " << j << "; p_j = " << p_j << "; p_j_tilde = " << p_j_tilde << endl;
+            RR W_j = log(p_j/p_j_tilde)/log(RR(2));
+
+            // Add W_j/m to the score.
+            S[v] = S[v] + W_j/m;
+            
+            v = next_vector(v);
         }
     }
 
+    // Find the maximum score.
+    vec_ZZ_p max_vec = zero_vector(d);
+    RR max_val = S[max_vec];
+    for (pair<vec_ZZ_p,RR> element : S) {
+        cout << element.first << ": " << element.second << endl;
+        if (element.second >= max_val) { 
+            max_vec = element.first;
+            max_val = element.second;
+        }
+    }
+
+    cout << "Predicted value: " << max_vec << endl;
+    cout << "Actual value: " << oracle.get_s() << endl;
+
+    delete [] F;
     return random_vec_ZZ_p(3);
 }
 
 int main() {
-    ZZ q(10);
+    ZZ q(19);
     ZZ_pPush push(q);
     lwe_oracle l(8, q, discrete_gaussian(RR(2.5),10));
-    vec_ZZ_p result = bkw(l, 2, 1, 10);
+    vec_ZZ_p result = bkw(l, 2, 1, 500);
 }
 

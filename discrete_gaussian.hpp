@@ -92,6 +92,8 @@ class discrete_gaussian {
 
         ZZ gen_number();
 
+        RR get_sigma() { return sigma; }
+        long get_m() { return m; }
         long get_max() { return max; }
 };
 

@@ -26,8 +26,12 @@ bool is_all_zero(vec_ZZ_p v, int a, int b) {
  * Returns the a-th through (b - 1)-th components of the vector v as a vectors. The indexing
  * starts at 0.
  */
-vec_ZZ_p slice(vec_ZZ_p v, int a, int b) {
-    vec_ZZ_p res = random_vec_ZZ_p(b - a);
+vec_ZZ_p slice(const vec_ZZ_p v, int a, int b) {
+    if (a >= b)
+        return vec_ZZ_p();
+
+    vec_ZZ_p res;
+    res.SetLength(b - a);
     for (int i = a; i <= b - 1; i++) {
         res[i - a] = v[i];
     }
