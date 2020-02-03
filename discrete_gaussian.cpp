@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
 
@@ -9,7 +10,8 @@
 using namespace std;
 using namespace NTL;
 
-#define PREC 128 // Floating point precision.
+//#define PREC 128 // Floating point precision.
+#define PREC 64 // Floating point precision.
 
 /*
  * Initializes a discrete Gaussian generator with the provided standard deviation sigma and
@@ -130,3 +132,35 @@ ZZ discrete_gaussian::gen_number() {
     return ZZ(sign * s);
 }
 
+/*
+Constant time Knuth Yao--jiabo wang
+*/
+/*ZZ discrete_gaussian::gen_number() {
+	// Generate a bit for the sign.
+	long sign = (RandomBits_long(1) == 0) ? 1 : -1;
+
+	// Generate a number in the range [0,m*sigma] using the Knuth-Yao algorithm.
+	int d = 0;
+	int hit = 0;
+	unsigned col = 0;
+	long s = 0;
+	unsigned enable;
+	for (int colum = 0; colum < (RR::precision() / 8 * 8); colum ++)
+	{
+		long r = RandomBits_long(1);
+		d = 2 * d + (1 ^ r);
+
+		for (int row = max; row >= 0; row--) {
+			d = d - get_bit(bin_probs[row], col);
+			enable = (unsigned)(d + 1); // "enable" turns 0 iff d = -1
+			enable = 1 ^ ((enable | -enable) >> 31) & 1; // "enable" turns 1 iff "enable" was 0
+			if ((col > RR::precision() / 8 * 8) && (hit != 1)) 
+			{ // If we hit the end, try again.
+				s = row;
+			}
+		}
+
+	}
+
+	return ZZ(sign * s);
+}*/
